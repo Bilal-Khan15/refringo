@@ -1,7 +1,12 @@
 import requests 
 import xml.etree.ElementTree as ET 
 import pymongo
+from flask import Flask, request, jsonify, make_response, session, flash, get_flashed_messages, render_template, redirect
+from flask_session import Session
+from flask_cors import CORS, cross_origin
 
+app = Flask(__name__)
+cors = CORS(app)
 myclient = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = myclient["refringo"]
 
@@ -27,7 +32,19 @@ def parseXML():
       result = mydb.jobs.insert_one(job)
 
 
+@cross_origin
+@app.route('/jobs', methods=['GET'])
 def search(country="", city="", title=""):
+   country = request.args.get('country')
+   city = request.args.get('city')
+   title = request.args.get('title')
+
+   # query = dict(request.form)
+   # country = query['country'][0]
+   # city = query['city'][0]
+   # title = query['title'][0]
+
+   jobs = []
    q = {}
    if(country):
       q["country"] = country
@@ -36,11 +53,15 @@ def search(country="", city="", title=""):
    if(title):
       q["title"] = title
 
-   cur = mydb.jobs.find(q,{ "_id": 0, "title": 1, "country": 1 })
+   cur = mydb.jobs.find(q,{ "_id": 0}).limit(100)
    for doc in cur:
-      print(doc)
+      jobs.append(doc)
+
+   return jsonify({'jobs': jobs})
 
 
+@cross_origin
+@app.route('/test', methods=['POST'])
 def main(): 
 
 #    with open('feedLinks.txt','r') as f:
@@ -57,10 +78,10 @@ def main():
 
 #    # mydb.jobs.drop()
 
-   # search("IT", "", "")
+   search("IT", "", "")
 	
-if __name__ == "__main__": 
-	main() 
+if __name__ == '__main__':
+    app.run(host="0.0.0.0",port='80',debug=True)
 
 
 
