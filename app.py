@@ -4,11 +4,14 @@ import pymongo
 from flask import Flask, request, jsonify, make_response, session, flash, get_flashed_messages, render_template, redirect
 from flask_session import Session
 from flask_cors import CORS, cross_origin
+from snippet import rich
 
 app = Flask(__name__)
 cors = CORS(app)
 myclient = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = myclient["refringo"]
+
+from flask import render_template
 
 
 def loadXML(url): 
@@ -29,7 +32,14 @@ def parseXML():
          
          job[str(subelem.tag)] = str(subelem.text)
 
+      rich(job)
       result = mydb.jobs.insert_one(job)
+
+
+@cross_origin
+@app.route('/jobs/<id>', methods=['GET'])
+def index(id):
+   return render_template(str(id)+".html")
 
 
 @cross_origin
@@ -61,24 +71,30 @@ def search(country="", city="", title=""):
 
 
 @cross_origin
+@app.route('/drop', methods=['GET'])
+def drop():
+   mydb.jobs.drop()
+   return jsonify({'response': "DB cleared!"})
+
+
+@cross_origin
 @app.route('/test', methods=['POST'])
 def main(): 
+   with open('feedLinks.txt','r') as f:
+      for line in f:
+         link = line.split("&page=1&of=1")
+         # for i in range(1,101):
+         for i in range(1,2):
+            URL = link[0] + "&page=" + str(i) + "&of=100"
+            print("Now fetching data from '" + URL + "' ...")
+            loadXML(URL) 
+            print("Fetching completed ..")
+            jobitems = parseXML() 
+            print("Saving to DB completed .")
 
-#    with open('feedLinks.txt','r') as f:
-#       for line in f:
-#          link = line.split("&page=1&of=1")
-#          # for i in range(1,101):
-#          for i in range(1,2):
-#             URL = link[0] + "&page=" + str(i) + "&of=100"
-#             print("Now fetching data from '" + URL + "' ...")
-#             loadXML(URL) 
-#             print("Fetching completed ..")
-#             jobitems = parseXML() 
-#             print("Saving to DB completed .")
+   # search("IT", "", "")
 
-#    # mydb.jobs.drop()
-
-   search("IT", "", "")
+   return jsonify({'response': "Job feeds updated!"})
 	
 if __name__ == '__main__':
     app.run(host="0.0.0.0",port='80',debug=True)
