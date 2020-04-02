@@ -14,10 +14,13 @@ def rich(bilal):
     file1.write('"title" : "')
     file1.write(bilal['title'])
 
-    file1.write('",'+'\n'+'"description" : "')
-    file1.write(bilal['description'])
+    file1.write('",'+'\n'+'"description" : ')
 
-    file1.write('",'+'\n'+'"datePosted" : "')
+    file1.write('"')
+    file1.write(bilal['description'])
+    file1.write('",')
+
+    file1.write('\n'+'"datePosted" : "')
     try:
         file1.write(bilal['posted-date'].split('T')[0])
     except:

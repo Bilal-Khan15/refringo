@@ -5,13 +5,27 @@ from flask import Flask, request, jsonify, make_response, session, flash, get_fl
 from flask_session import Session
 from flask_cors import CORS, cross_origin
 from snippet import rich
+import os
+from flask import render_template
+from oauth2client.service_account import ServiceAccountCredentials
+import httplib2
+from datetime import datetime
 
 app = Flask(__name__)
 cors = CORS(app)
 myclient = pymongo.MongoClient("mongodb://localhost:27017/")
 mydb = myclient["refringo"]
-
-from flask import render_template
+SCOPES = [ "https://www.googleapis.com/auth/indexing" ]
+ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
+JSON_KEY_FILE = "api-266117-e97bc7b404ed.json"
+credentials = ServiceAccountCredentials.from_json_keyfile_name(JSON_KEY_FILE, scopes=SCOPES)
+http = credentials.authorize(httplib2.Http())
+today = 1585699200.0000
+now = datetime.now()
+timestamp = datetime.timestamp(now)
+if(timestamp >= today+86400):
+   today = today+86400
+   print('Bilal')
 
 
 def loadXML(url): 
@@ -21,25 +35,56 @@ def loadXML(url):
 		f.write(resp.content) 
 		
 
-def parseXML(): 
-   tree = ET.parse('jobfeed.xml')
-   root = tree.getroot()
+def parseXML(file): 
+   with open('templates/'+file, "a", encoding='utf-8') as site:
+      site.write('<?xml version="1.0" encoding="UTF-8"?>'+'\n'+'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+'\n')
+      tree = ET.parse('jobfeed.xml')
+      root = tree.getroot()
 
-   for elem in root:
-      job = {}
-      
-      for subelem in elem:
+      for elem in root:
+         job = {}
          
-         job[str(subelem.tag)] = str(subelem.text)
+         for subelem in elem:
+            
+            job[str(subelem.tag)] = str(subelem.text)
 
-      rich(job)
-      result = mydb.jobs.insert_one(job)
+         try:
+            site.write('<url>'+'\n'+'<loc>http://refringo.com/templates/'+str(job['job-code'])+'.html</loc>'+'\n'+'</url>'+'\n')
+            content = {
+               "url": "http://refringo.com/templates/"+str(job['job-code'])+".html",
+               "type": "URL_UPDATED"
+            }
+
+         except:
+            site.write('<url>'+'\n'+'<loc>http://refringo.com/templates/'+str(job['jobid'])+'.html</loc>'+'\n'+'</url>'+'\n')
+            content = {
+               "url": "http://refringo.com/templates/"+str(job['jobid'])+".html",
+               "type": "URL_UPDATED"
+            }
+
+         job['description'] = job['description'].replace('"', '\\"').replace("'","\\'")
+         rich(job)
+         result = mydb.jobs.insert_one(job)
+         # response, content = http.request(ENDPOINT, method="POST", body=str(content))
+         # if(response['status'] != '200'):
+         #    print(response)
+
+      site.write('</urlset>')
 
 
 @cross_origin
-@app.route('/jobs/<id>', methods=['GET'])
+@app.route('/job', methods=['GET'])
+def job(url=""):
+   url = request.args.get('url')
+   cur = mydb.jobs.find_one({"url": url}, { "_id": 0})
+
+   return jsonify({'jobs': cur})
+
+
+@cross_origin
+@app.route('/templates/<id>', methods=['GET'])
 def index(id):
-   return render_template(str(id)+".html")
+   return render_template(str(id))
 
 
 @cross_origin
@@ -71,31 +116,72 @@ def search(country="", city="", title=""):
 
 
 @cross_origin
+@app.route('/city', methods=['GET'])
+def city(country=""):
+   country = request.args.get('country')
+
+   city = mydb.jobs.find({ "country": country}).distinct('city')
+
+   return jsonify({'city': city})
+
+
+@cross_origin
+@app.route('/lists', methods=['GET'])
+def lists():
+   title = mydb.jobs.distinct('title')
+   country = mydb.jobs.distinct('country')
+   city = mydb.jobs.distinct('city')
+
+   return jsonify({'title': title, 'country':country, 'city': city})
+
+
+@cross_origin
 @app.route('/drop', methods=['GET'])
 def drop():
    mydb.jobs.drop()
-   return jsonify({'response': "DB cleared!"})
+
+   open('templates/sitemap_index.xml', 'w').close()
+
+   mydir = './templates/'
+
+   filelist = [ f for f in os.listdir(mydir) if f.endswith(".xml") ]
+   for f in filelist:
+      os.remove(os.path.join(mydir, f))
+
+   filelist = [ f for f in os.listdir(mydir) if f.endswith(".html") ]
+   for f in filelist:
+      os.remove(os.path.join(mydir, f))
+
+   return jsonify({'response': "cleared!"})
 
 
 @cross_origin
 @app.route('/test', methods=['POST'])
 def main(): 
-   with open('feedLinks.txt','r') as f:
-      for line in f:
-         link = line.split("&page=1&of=1")
-         # for i in range(1,101):
-         for i in range(1,2):
-            URL = link[0] + "&page=" + str(i) + "&of=100"
-            print("Now fetching data from '" + URL + "' ...")
-            loadXML(URL) 
-            print("Fetching completed ..")
-            jobitems = parseXML() 
-            print("Saving to DB completed .")
+   x = 0
+   with open('templates/'+"sitemap_index.xml", "a", encoding='utf-8') as myfile:
+      myfile.write('<?xml version="1.0" encoding="UTF-8"?>'+'\n'+'<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+'\n')
+      with open('feedLinks.txt','r') as f:
+         for line in f:
+            link = line.split("&page=1&of=1")
+            # for i in range(1,101):
+            for i in range(1,2):
+               URL = link[0] + "&page=" + str(i) + "&of=100"
+               print("Now fetching data from '" + URL + "' ...")
+               loadXML(URL) 
+               print("Fetching completed ..")
+               myfile.write('<sitemap>'+'\n'+'<loc>http://refringo.com/templates/sitemap_'+str(x)+'.xml</loc>'+'\n'+'</sitemap>'+'\n')
+               jobitems = parseXML('sitemap_'+str(x)+'.xml') 
+               x = x + 1
+               print("Saving to DB completed .")
+      myfile.write('</sitemapindex>')
+
+   requests.get("http://www.google.com/ping?sitemap=http://refringo.com/templates/sitemap_index.xml")
 
    # search("IT", "", "")
 
    return jsonify({'response': "Job feeds updated!"})
-	
+
 if __name__ == '__main__':
     app.run(host="0.0.0.0",port='80',debug=True)
 
@@ -105,7 +191,7 @@ if __name__ == '__main__':
 
 
 
-
+# http://www.google.com/ping?sitemap=http://refringo.com/templates/sitemap_index.xml
 
 
 
@@ -131,10 +217,24 @@ if __name__ == '__main__':
 # for doc in cur:
 #    print(doc)
 
-# cur = mydb.jobs.distinct('country')
+# cur = mydb.jobs.distinct('title')
 # print(cur)
 
 
 # cur = mydb.jobs.find({ "country": "US"}).distinct('city')
 # for doc in cur:
 #    print(doc)
+
+
+
+# print(len(cur))
+
+
+
+
+
+# ENDPOINT = "http://refringo.com/lists"
+
+# response = http.request(ENDPOINT, method="GET")
+
+# print(response)
