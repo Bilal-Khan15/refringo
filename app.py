@@ -10,6 +10,9 @@ from flask import render_template
 from oauth2client.service_account import ServiceAccountCredentials
 import httplib2
 from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.support import ui
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -20,12 +23,7 @@ ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 JSON_KEY_FILE = "api-266117-e97bc7b404ed.json"
 credentials = ServiceAccountCredentials.from_json_keyfile_name(JSON_KEY_FILE, scopes=SCOPES)
 http = credentials.authorize(httplib2.Http())
-today = 1585699200.0000
-now = datetime.now()
-timestamp = datetime.timestamp(now)
-if(timestamp >= today+86400):
-   today = today+86400
-   print('Bilal')
+prev = ""
 
 
 def loadXML(url): 
@@ -125,6 +123,35 @@ def city(country=""):
    return jsonify({'city': city})
 
 
+def page_is_loaded(driver):
+    return driver.current_url != prev
+
+@cross_origin
+@app.route('/apply', methods=['GET'])
+def apply(url=""):
+   url = request.args.get('url')
+   options = Options()
+   options.headless = True
+   driver = webdriver.Firefox(options=options)
+   driver.get(url)
+   try:
+      xpath = '//*[@id="apply-action"]'
+      btn = driver.find_element_by_xpath(xpath)
+      btn.click()
+      xpath = '//*[@id="user-email-alert"]'
+      box = driver.find_element_by_xpath(xpath)
+      box.send_keys('friediruegen84@gmail.com')
+      box.submit()
+      prev = driver.current_url
+      wait = ui.WebDriverWait(driver,10)
+      wait.until(page_is_loaded)
+      driver.save_screenshot('screen.png')
+      newURL = driver.current_url
+   except:
+      newURL = url
+   return jsonify({'newURL': newURL})
+
+
 @cross_origin
 @app.route('/lists', methods=['GET'])
 def lists():
@@ -156,7 +183,7 @@ def drop():
 
 
 @cross_origin
-@app.route('/test', methods=['POST'])
+@app.route('/test', methods=['GET'])
 def main(): 
    x = 0
    with open('templates/'+"sitemap_index.xml", "a", encoding='utf-8') as myfile:
@@ -178,9 +205,8 @@ def main():
 
    requests.get("http://www.google.com/ping?sitemap=http://refringo.com/templates/sitemap_index.xml")
 
-   # search("IT", "", "")
-
    return jsonify({'response': "Job feeds updated!"})
+
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0",port='80',debug=True)
@@ -238,3 +264,17 @@ if __name__ == '__main__':
 # response = http.request(ENDPOINT, method="GET")
 
 # print(response)
+
+
+
+
+
+
+
+
+# today = 1585699200.0000
+# now = datetime.now()
+# timestamp = datetime.timestamp(now)
+# if(timestamp >= today+86400):
+#    today = today+86400
+#    print('Bilal')
