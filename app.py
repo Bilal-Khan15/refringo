@@ -13,6 +13,7 @@ from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support import ui
+from flask_api import status
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -150,6 +151,44 @@ def apply(url=""):
    except:
       newURL = url
    return jsonify({'newURL': newURL})
+
+
+@cross_origin
+@app.route('/addPage', methods=['POST'])
+def addPage():
+   page = dict(request.form)
+   description = page['description']
+   typeof = page['typeof']
+
+   page_request = {
+      'description': description,
+      'typeof': typeof
+   }
+   mydb.page.insert_one(page_request)
+
+   return jsonify({'response': 'Page Added'})
+
+
+@cross_origin
+@app.route('/deletePage', methods=['GET'])
+def deletePage():
+   typeof = request.args.get('typeof')
+
+   mydb.page.remove({'typeof': typeof})
+
+   return jsonify({'response': 'Page Deleted'})
+
+
+@cross_origin
+@app.route('/readPage', methods=['GET'])
+def readPage():
+   typeof = request.args.get('typeof')
+
+   page = mydb.page.find_one({'typeof': typeof}, { "_id": 0})
+   if(page == None):
+      return jsonify({'response': 'Not available! '}), status.HTTP_404_NOT_FOUND
+   else:
+      return jsonify({'response': page})
 
 
 @cross_origin
