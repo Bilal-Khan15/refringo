@@ -47,16 +47,16 @@ def parseXML(file):
             job[str(subelem.tag)] = str(subelem.text)
 
          try:
-            site.write('<url>'+'\n'+'<loc>http://refringo.com/templates/'+str(job['job-code'])+'.html</loc>'+'\n'+'</url>'+'\n')
+            site.write('<url>'+'\n'+'<loc>http://refringo.com:8080/templates/'+str(job['job-code'])+'.html</loc>'+'\n'+'</url>'+'\n')
             content = {
-               "url": "http://refringo.com/templates/"+str(job['job-code'])+".html",
+               "url": "http://refringo.com:8080/templates/"+str(job['job-code'])+".html",
                "type": "URL_UPDATED"
             }
 
          except:
-            site.write('<url>'+'\n'+'<loc>http://refringo.com/templates/'+str(job['jobid'])+'.html</loc>'+'\n'+'</url>'+'\n')
+            site.write('<url>'+'\n'+'<loc>http://refringo.com:8080/templates/'+str(job['jobid'])+'.html</loc>'+'\n'+'</url>'+'\n')
             content = {
-               "url": "http://refringo.com/templates/"+str(job['jobid'])+".html",
+               "url": "http://refringo.com:8080/templates/"+str(job['jobid'])+".html",
                "type": "URL_UPDATED"
             }
 
@@ -197,19 +197,19 @@ def main():
                print("Now fetching data from '" + URL + "' ...")
                loadXML(URL) 
                print("Fetching completed ..")
-               myfile.write('<sitemap>'+'\n'+'<loc>http://refringo.com/templates/sitemap_'+str(x)+'.xml</loc>'+'\n'+'</sitemap>'+'\n')
+               myfile.write('<sitemap>'+'\n'+'<loc>http://refringo.com:8080/templates/sitemap_'+str(x)+'.xml</loc>'+'\n'+'</sitemap>'+'\n')
                jobitems = parseXML('sitemap_'+str(x)+'.xml') 
                x = x + 1
                print("Saving to DB completed .")
       myfile.write('</sitemapindex>')
 
-   requests.get("http://www.google.com/ping?sitemap=http://refringo.com/templates/sitemap_index.xml")
+   requests.get("http://www.google.com/ping?sitemap=http://refringo.com:8080/templates/sitemap_index.xml")
 
    return jsonify({'response': "Job feeds updated!"})
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0",port='80',debug=True)
+    app.run(host="0.0.0.0",port='8080',debug=True)
 
 
 
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
 
 
-# http://www.google.com/ping?sitemap=http://refringo.com/templates/sitemap_index.xml
+# http://www.google.com/ping?sitemap=http://refringo.com:8080/templates/sitemap_index.xml
 
 
 
@@ -259,7 +259,7 @@ if __name__ == '__main__':
 
 
 
-# ENDPOINT = "http://refringo.com/lists"
+# ENDPOINT = "http://refringo.com:8080/lists"
 
 # response = http.request(ENDPOINT, method="GET")
 

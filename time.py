@@ -6,8 +6,8 @@ import requests
 
 
 def tick():
-    requests.get("http://refringo.com/drop")
-    requests.get("http://refringo.com/test")
+    requests.get("http://refringo.com:8080/drop")
+    requests.get("http://refringo.com:8080/test")
 
 
 if __name__ == '__main__':
